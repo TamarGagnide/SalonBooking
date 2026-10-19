@@ -25,4 +25,14 @@ The system will support customer accounts, service browsing, appointment availab
 
 Online payments, customer reviews, loyalty programs, email reminders, and multiple salon branches are outside the initial MVP scope.
 
+## Non-Functional Requirements
+
+**NFR-01 — Performance:** The system must return service lists and appointment availability results within 2 seconds for at least 95% of requests under a test load of 50 concurrent users.
+
+**NFR-02 — Concurrent Usage:** The system must support at least 50 simultaneous users without crashing or losing booking data.
+
+**NFR-03 — Booking Integrity:** The system must prevent overlapping active appointments for the same stylist, including when multiple customers attempt to book the same time slot simultaneously.
+
+**NFR-04 — Access Control:** The system must prevent unauthorized access to customer appointments and administrative functions. Automated tests must verify access permissions for each user role.
+
 
