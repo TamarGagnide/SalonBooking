@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: salonbooking
+      POSTGRES_USER: salonbooking
+      POSTGRES_PASSWORD: salonbooking
+    ports:
+      - "5432:5432"
+    volumes:
+      - salonbooking_pgdata:/var/lib/postgresql/data
+
+volumes:
+  salonbooking_pgdata:

@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: salon-booking
+  datasource:
+    url: jdbc:postgresql://localhost:5432/salonbooking
+    username: salonbooking
+    password: salonbooking
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: false
+  sql:
+    init:
+      mode: always
+
+server:
+  port: 8080
