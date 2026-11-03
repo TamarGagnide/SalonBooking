@@ -61,7 +61,7 @@ The service layer checks availability *before* writing (fast rejection with a cl
 
 ## Database: PostgreSQL + schema
 
-PostgreSQL was chosen over a NoSQL store specifically **because of NFR-03**: appointments are inherently relational (customer ↔ stylist ↔ service ↔ time range) and the no-overlap guarantee is best enforced as a database constraint, not just application code, so it holds even if a bug or a second app instance bypasses the service layer. Postgres's `EXCLUDE USING gist` constraint (enabled by the `btree_gist` extension) does exactly this — see `src/main/resources/schema.sql`:
+PostgreSQL was chosen over a NoSQL store specifically **because of NFR-03**: appointments are inherently relational (customer ↔ stylist ↔ service ↔ time range) and the no-overlap guarantee is best enforced as a database constraint, not just application code, so it holds even if a bug or a second app instance bypasses the service layer. Postgres's `EXCLUDE USING gist` constraint (enabled by the `btree_gist` extension) does exactly this — see `backend/src/main/resources/schema.sql`:
 
 ```sql
 CREATE TABLE appointments (
