@@ -22,7 +22,7 @@ The backend is on a free Render plan that sleeps when idle, so the first request
 ## What it can't do yet (and why)
 
 - The backend has no endpoints for listing stylists, services or a customer's appointments, so stylist and service are typed as ID numbers and the bookings list only shows bookings from the current session.
-- Booking needs a stylist, a service and working hours in the database, and there is no seed data yet.
+- Booking needs a stylist, a service and working hours in the database. `backend/src/main/resources/data.sql` seeds stylists 1-2, services 1-3 and Monday-Saturday 09:00-18:00 hours, so use those IDs and a time inside that window.
 - Login is simplified: the user object is kept in `localStorage` and there are no tokens.
 
 ## Structure

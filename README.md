@@ -46,7 +46,7 @@ The core engineering problem is the no-double-booking rule (see [Design decision
 | Frontend | Minimal demo only: register, login, check availability, book, cancel. Deployed on Vercel |
 | CI (GitHub Actions) | Working: runs tests against Postgres |
 | Deployment | Backend and database live on Render, frontend live on Vercel. CORS between them works (preflight request from the Vercel URL returns 200) |
-| Demo data | **None yet**, so booking needs manual SQL inserts for now |
+| Demo data | `backend/src/main/resources/data.sql` seeds 2 stylists, 3 services and Mon-Sat 09:00-18:00 working hours on an empty database |
 | Authentication | Simplified: no tokens or sessions (see limitations) |
 
 ## Tech stack
@@ -208,7 +208,7 @@ Using each for what it does best also lets the two folders deploy independently.
 
 Not implemented or simplified at this stage:
 
-- **No seed data and no admin API**, so stylists, services and working hours must be inserted manually in SQL before booking works.
+- **No admin API.** Stylists, services and working hours come only from the seed data in `data.sql`; there are no endpoints to manage them (SALON-10/11).
 - **Missing endpoints** for browsing services/stylists, "my appointments", stylist schedules and admin management (SALON-03/04/07/09/10/11).
 - **Simplified authentication.** Login returns the customer record, and the client sends its own `customerId`. A real system would issue tokens (for example JWT) and read the identity from them on the server, so one user cannot act as another. As it stands this weakens the NFR-04 guarantee.
 - **Frontend is a demo.** Stylist and service are typed as ID numbers, and bookings only show for the current session.
