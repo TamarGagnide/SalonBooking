@@ -1,188 +1,252 @@
 # SalonBooking
 
-Salon appointment reservation system: customers browse services and stylists, check availability, and book or cancel appointments, while the system guarantees that no stylist is ever double-booked.
+Salon appointment booking system: a Spring Boot REST API with PostgreSQL, and a React frontend, deployed on Render and Vercel.
+
+## Links
+
+| What | Link |
+|---|---|
+| Source code (GitHub) | https://github.com/TamarGagnide/SalonBooking |
+| Live frontend (Vercel) | https://salonbooking-frontend-flame.vercel.app/ |
+| Live backend API (Render) | https://salonbooking-api.onrender.com |
+| Backend health check | https://salonbooking-api.onrender.com/actuator/health |
+| Architecture notes | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| Cloud-native exercise | [`docs/CLOUD_NATIVE.md`](docs/CLOUD_NATIVE.md) |
+| Testing notes | [`docs/TESTING.md`](docs/TESTING.md) |
+| Frontend notes | [`frontend/README.md`](frontend/README.md) |
+
+> The backend runs on a free Render plan that sleeps when idle. The first request after a pause can take 30-60 seconds.
 
 ## Table of Contents
 
-1. [Project Description](#project-description)
-2. [Tech Stack](#tech-stack)
-3. [Architecture: Modular Monolith](#architecture-modular-monolith)
-4. [Repository Structure](#repository-structure)
-5. [Key Design Decisions](#key-design-decisions)
-6. [API Overview](#api-overview)
-7. [Running Locally](#running-locally)
-8. [Testing and CI](#testing-and-ci)
-9. [Deployment: Vercel + Render](#deployment-vercel--render)
-10. [Further Documentation](#further-documentation)
-11. [Requirements: Stakeholders, Scope, NFRs, MVP](#requirements)
+1. [What this project is](#what-this-project-is)
+3. [Current status](#current-status)
+4. [Tech stack](#tech-stack)
+5. [Architecture: why a monolith?](#architecture-why-a-monolith)
+6. [Repository structure](#repository-structure)
+7. [Design decisions explained](#design-decisions-explained)
+8. [Frontend](#frontend)
+9. [API overview](#api-overview)
+10. [Running locally](#running-locally)
+11. [Testing and CI](#testing-and-ci)
+12. [Deployment: Vercel + Render](#deployment-vercel--render)
+13. [Known limitations and next steps](#known-limitations-and-next-steps)
+14. [Further documentation](#further-documentation)
+15. [Requirements](#requirements)
 
-## Project Description
+## What this project is
 
-SalonBooking is a web application designed to simplify appointment booking at a beauty salon. Customers can browse salon services, choose a stylist, view available time slots, and book or cancel appointments. Stylists can view their schedules, while the salon administrator manages services, stylists, and working hours. The system aims to reduce manual scheduling and prevent appointment conflicts.
+Customers can browse salon services, choose a stylist, check available time slots, and book or cancel appointments. Stylists see their schedules and the salon administrator manages services and working hours. The goal of the system is to replace manual scheduling and **prevent two customers from booking the same stylist at the same time**.
 
-**Current status:** the backend slice that carries the hardest requirements (registration, login, availability, booking, cancellation, no-overlap guarantee, access control) is implemented and tested. A minimal React frontend (`frontend/`: register, login, check availability, book, cancel) is built and ready for Vercel.
+The core engineering problem is the no-double-booking rule (see [Design decisions explained](#design-decisions-explained)).
 
-## Tech Stack
 
-| Layer | Technology | Notes |
+## Current status
+
+| Part | State |
+|---|---|
+| Requirements (stakeholders, NFRs, MVP stories) | Written (see bottom of this file) |
+| Backend: register, login, availability, book, cancel | Implemented and tested |
+| Backend: list services/stylists, my appointments, schedules, admin | **Not implemented yet** (domain model exists) |
+| Frontend | Minimal demo only: register, login, check availability, book, cancel. Deployed on Vercel |
+| CI (GitHub Actions) | Working: runs tests against Postgres |
+| Deployment | Backend and database live on Render, frontend live on Vercel. CORS between them works (preflight request from the Vercel URL returns 200) |
+| Demo data | **None yet**, so booking needs manual SQL inserts for now |
+| Authentication | Simplified: no tokens or sessions (see limitations) |
+
+## Tech stack
+
+| Layer | Technology | Why it is here |
 |---|---|---|
-| Backend | Java 21, Spring Boot 3.3 (Web, Data JPA, Validation, Actuator, Security-Crypto) | REST API, BCrypt password hashing |
-| Database | PostgreSQL 16 | Relational model; `EXCLUDE` constraint enforces no double-booking |
-| Frontend | React 18 + Vite | Static SPA, hosted on Vercel |
-| Build / tests | Maven, JUnit 5, Jacoco | Unit + integration tests against real Postgres |
-| Containers | Docker, docker-compose | Dockerfile for the API; compose for local Postgres |
-| CI | GitHub Actions | Runs the full test suite against a Postgres service on every push/PR |
-| Hosting | Vercel (frontend), Render (backend + Postgres) | Backend defined as code in `render.yaml` |
+| Backend | Java 21, Spring Boot 3.3 (Web, Data JPA, Validation, Actuator, Security-Crypto) | Common, well documented, good for layered design |
+| Database | PostgreSQL 16 | Relational data, plus a constraint type that prevents overlaps |
+| Frontend | React 18 + Vite | Simple SPA, easy to host statically |
+| Tests | JUnit 5, Jacoco | Unit tests, integration tests, coverage report |
+| Containers | Docker, docker-compose | Same environment locally and in the cloud |
+| CI | GitHub Actions | Runs the tests on every push |
+| Hosting | Vercel (frontend), Render (backend + Postgres) | Free tiers, GitHub integration |
 
-## Architecture: Modular Monolith
+## Architecture: why a monolith?
 
-SalonBooking is a **monolith, not microservices**: one Spring Boot application, one deployable artifact, one database. Internally it is split into clear layers (`api` → `service` → `repository` → `domain`), so it is a *modular* monolith.
+SalonBooking is a **monolith, not microservices**: one Spring Boot application, one database, one deployable. Inside, it is split into layers (`api` → `service` → `repository` → `domain`), which makes it a *modular* monolith.
 
 ```mermaid
 graph LR
     User["Browser"] --> FE["Frontend (React)<br/>Vercel"]
-    FE -- "HTTPS / JSON (CORS-restricted)" --> API["Spring Boot API<br/>Render Web Service (Docker)"]
-    API --> DB[("PostgreSQL<br/>Render Postgres")]
+    FE -- "HTTPS / JSON (CORS)" --> API["Spring Boot API<br/>Render (Docker)"]
+    API --> DB[("PostgreSQL<br/>Render")]
 ```
 
-**Why a monolith?**
+The reasoning, in order of importance:
 
-1. **The requirements don't need distribution.** NFR-02 asks for about 50 concurrent users. A single Spring Boot instance on a well-indexed Postgres handles that comfortably. Microservices would add network hops, eventual consistency and operational overhead to solve a scaling problem that doesn't exist.
-2. **Booking integrity is easier in one place.** The core guarantee (NFR-03, no overlapping appointments) is a transactional, relational concern. Keeping bookings, availability and customers in one database lets Postgres enforce it directly. Splitting these across services would force distributed transactions or sagas for the most important rule in the system.
-3. **Team of one.** Microservices pay off when separate teams own separate services. A solo developer would pay the cost (service discovery, API gateway, per-service pipelines, distributed debugging) without the benefit.
-4. **Cost and simplicity.** One container, one database, one pipeline. This fits free or low-cost hosting.
-5. **It can be split later.** The package boundaries map directly onto a service decomposition (Identity, Catalog, Availability, Booking-Core, Admin). `docs/CLOUD_NATIVE.md` sketches that split as a design exercise. The plan is "rehost the monolith now, refactor only when real load justifies it".
+1. **The requirements don't call for distribution.** NFR-02 asks for about 50 concurrent users. One Spring Boot instance on Postgres handles that. Microservices would add network calls and complexity to solve a scaling problem that does not exist.
+2. **The key rule is easier inside one database.** "No overlapping appointments" is a transactional, relational rule. In one database, Postgres can enforce it directly. Across several services I would need distributed transactions or sagas for the most important rule in the system.
+3. **One developer.** Microservices help when separate teams own separate services. For one person they mostly add overhead (gateways, per-service pipelines, distributed debugging).
+4. **Cost and simplicity.** One container and one database fit free hosting tiers.
+5. **It can be split later.** The package boundaries map onto a possible split (Identity, Catalog, Availability, Booking, Admin). `docs/CLOUD_NATIVE.md` explores that as a design exercise, but it is not built.
 
-The trade-off accepted: the whole backend scales and fails as one unit. That is fine at this scale, and the risk is documented in `docs/ARCHITECTURE.md`.
+**Trade-off I accepted:** the whole backend scales and fails as one unit. That is fine at this size, and it is listed as a risk in `docs/ARCHITECTURE.md`.
 
-**Frontend and backend are separate deployables.** They live in separate folders and deploy independently to different platforms. That is a normal client/server split, not a microservice split: there is still a single backend service.
+**Frontend and backend are separate deployables.** They live in separate folders and deploy to different platforms. That is a normal client/server split and does not make the system microservices.
 
-## Repository Structure
+## Repository structure
 
 ```
 SalonBooking/
 ├── backend/                  Spring Boot API
 │   ├── src/main/java/com/salonbooking/
 │   │   ├── api/              Controllers, DTOs, exception handling
-│   │   ├── service/          Business logic (overlap, working hours, access control)
+│   │   ├── service/          Business rules (overlap, working hours, access control)
 │   │   ├── repository/       Spring Data JPA repositories
 │   │   └── domain/           Entities (Customer, Stylist, SalonService, WorkingHours, Appointment)
 │   ├── src/main/resources/   application.yml, schema.sql
 │   ├── src/test/             Unit + integration tests
-│   ├── Dockerfile            Multi-stage build used by Render
+│   ├── Dockerfile            Multi-stage build (used by Render)
 │   ├── docker-compose.yml    Local Postgres
 │   └── pom.xml
-├── frontend/                 React + Vite app, deployed to Vercel
+├── frontend/                 React + Vite demo UI (Vercel)
 ├── docs/                     ARCHITECTURE.md, CLOUD_NATIVE.md, TESTING.md
-├── render.yaml               Render Blueprint (API + Postgres)
+├── render.yaml               Render Blueprint (API + database)
 └── .github/workflows/ci.yml  CI pipeline
 ```
 
-## Key Design Decisions
+## Design decisions explained
 
-- **PostgreSQL over NoSQL.** Appointments are relational (customer, stylist, service, time range). Postgres's `EXCLUDE USING gist` constraint (via `btree_gist`) rejects overlapping active appointments for the same stylist at the database level. This is the real safety net for NFR-03: it holds even under concurrent requests or if application code has a bug. The service layer also checks first, to return friendly errors.
-- **Access control in the service layer (NFR-04).** Customers can only act on their own appointments. This is covered by automated tests.
-- **BCrypt password hashing** via `spring-security-crypto`, without pulling in full Spring Security for the MVP.
-- **Configuration through environment variables.** Database credentials, port and allowed CORS origins are read from env vars (with local defaults), so the same image runs locally and on Render.
-- **Health endpoint.** `/actuator/health` is the only exposed actuator endpoint, used by Render for health checks.
+**Why PostgreSQL and not NoSQL?** Appointments are relational (customer, stylist, service, time range). Postgres has an `EXCLUDE USING gist` constraint (with the `btree_gist` extension) that rejects overlapping active appointments for the same stylist *inside the database*.
 
-## API Overview
+**Why check overlaps twice?** The service layer checks availability first so it can return a friendly error. But two requests can pass that check at the same instant (a race condition). The database constraint is the real safety net: one of the two inserts fails. An integration test proves this against real Postgres.
+
+**Why only `spring-security-crypto`?** Full Spring Security (sessions, tokens, filters) is a big topic. For this stage I only hash passwords with BCrypt and check access rules in the service layer (a customer can only cancel their own appointment).
+
+**Why environment variables for config?** The same Docker image should run locally and on Render. Database credentials, port and allowed frontend origins come from env vars with local defaults.
+
+**Why CORS?** The frontend (Vercel) and backend (Render) are different origins. Browsers block calls between them unless the backend explicitly allows the frontend's URL (`CORS_ALLOWED_ORIGINS`).
+
+## Frontend
+
+The frontend (`frontend/`) is a small React 18 + Vite single-page app, built to try the API from a browser and to practice deploying a static site on Vercel. Live: https://salonbooking-frontend-flame.vercel.app/
+
+- **Pages/flows:** register, log in, check a stylist's availability for a time slot, book it, cancel it.
+- **Structure:** `src/api.js` (all `fetch` calls, base URL from `VITE_API_URL`), `src/App.jsx` (auth form and booking screen), `src/styles.css` (theme).
+- **Styling:** plain CSS with a soft pink/mauve palette from Coolors (`#d6c7cf #c6bbc1 #d5cbd0 #e8dce2 #ebe1e6 #f2e4ea #f2e4eb #f6e7ee #f4e6ed #f6ebf0`). These are very light, so text and buttons use darker plum tones derived from them.
+- **Config:** `VITE_API_URL` is the backend URL. Vite bakes it into the build, so it must be set in Vercel *before* deploying.
+- **Limits:** the backend has no list endpoints yet, so stylist and service are typed as IDs and the bookings list only shows the current session. Login state is just the user object in `localStorage` (no tokens).
+
+More detail in [`frontend/README.md`](frontend/README.md).
+
+## API overview
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/customers` | Register a customer (SALON-01) |
+| POST | `/api/customers` | Register (SALON-01) |
 | POST | `/api/auth/login` | Log in (SALON-02) |
-| GET | `/api/stylists/{stylistId}/availability` | Check open slots (SALON-05) |
-| POST | `/api/appointments` | Book an appointment (SALON-06) |
-| DELETE | `/api/appointments/{appointmentId}` | Cancel an appointment (SALON-08) |
-| GET | `/actuator/health` | Health check |
+| GET | `/api/stylists/{stylistId}/availability` | Check a time slot (SALON-05) |
+| POST | `/api/appointments` | Book (SALON-06) |
+| DELETE | `/api/appointments/{appointmentId}` | Cancel (SALON-08) |
+| GET | `/actuator/health` | Health check (used by Render) |
 
-Endpoints for browsing services and stylists, viewing appointments and schedules, and admin management are planned (SALON-03/04/07/09/10/11).
+## Running locally
 
-## Running Locally
-
-Prerequisites: JDK 21, Maven, Docker.
+Needs JDK 21, Maven, Docker and Node.
 
 ```bash
-# 1. Start Postgres
+# Backend
 cd backend
-docker-compose up -d postgres
+docker-compose up -d postgres     # local database
+mvn spring-boot:run               # http://localhost:8080
 
-# 2. Run the API (http://localhost:8080)
-mvn spring-boot:run
+# Frontend (second terminal)
+cd frontend
+cp .env.example .env              # VITE_API_URL=http://localhost:8080
+npm install
+npm run dev                       # http://localhost:5173
 ```
 
-Defaults match `docker-compose.yml`. Override with `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `PORT` and `CORS_ALLOWED_ORIGINS` if needed. The schema is created from `schema.sql` on startup.
-
-To build the container image instead:
-
-```bash
-docker build -t salonbooking-api backend
-```
+Backend settings can be overridden with `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `PORT`, `CORS_ALLOWED_ORIGINS`.
 
 ## Testing and CI
 
 ```bash
 cd backend
-mvn test          # unit + integration tests; integration tests need Postgres running
+mvn test     # integration tests need Postgres running
 ```
 
-- 11 tests: 9 unit (overlap logic, booking rules, access control) and 2 integration (the real Postgres `EXCLUDE` constraint rejecting a double-booking insert).
-- Jacoco coverage report: `backend/target/site/jacoco/index.html`.
-- GitHub Actions (`.github/workflows/ci.yml`) runs the suite against a Postgres service container on every push and pull request to `main` and uploads the coverage report.
+- 11 tests: 9 unit tests (overlap logic, booking rules, access control) and 2 integration tests (Postgres rejecting a double-booking insert).
+- Coverage report from Jacoco: `backend/target/site/jacoco/index.html`.
+- GitHub Actions (`.github/workflows/ci.yml`) runs the tests against a Postgres service on every push and pull request.
 
-Details and captured output: `docs/TESTING.md`.
+Details and captured output are in `docs/TESTING.md`.
 
 ## Deployment: Vercel + Render
 
 ```
-GitHub repo ──push──► Vercel  (builds frontend/, serves the static SPA from a CDN)
-            └─push──► Render  (builds backend/Dockerfile, runs the API, managed Postgres)
+GitHub repo ──push──► Vercel  (builds frontend/, serves static files from a CDN)
+            └─push──► Render  (builds backend/Dockerfile, runs API + Postgres)
 ```
 
-### Why these two?
+### Why two platforms?
 
-| Platform | Role | Why |
-|---|---|---|
-| **Vercel** | Frontend | Built for static and SPA hosting: global CDN, HTTPS, automatic deploys per push, preview deployments per pull request, generous free tier. |
-| **Render** | Backend + database | Runs a long-lived Docker container (Spring Boot needs a warm JVM and pooled DB connections), offers managed Postgres alongside it, and supports infrastructure as code via `render.yaml`. |
+- **Vercel** is made for static sites and SPAs: CDN, HTTPS and automatic deploys on every push.
+- **Render** can run a long-lived Docker container and a managed Postgres, which a Spring Boot app needs (warm JVM, database connection pool). Vercel is built for short serverless functions, so it is a poor fit for this backend.
 
-Vercel is not a fit for the backend: it targets static sites and short-lived serverless functions, not a persistent JVM with a database connection pool. Render is not needed for the frontend: a CDN-served static site is cheaper and faster on Vercel. Splitting along that line uses each platform for what it does best, and the two folders deploy independently.
+Using each for what it does best also lets the two folders deploy independently.
 
-### Deploying the backend (Render)
+### Steps I followed
 
+**Backend (Render)**
 1. Push the repo to GitHub.
-2. In Render: **New → Blueprint**, select the repo. Render reads `render.yaml` and creates the `salonbooking-api` web service (Docker, `rootDir: backend`) and the `salonbooking-db` Postgres database. DB connection variables are wired in automatically.
-3. In the service's environment settings, set `CORS_ALLOWED_ORIGINS` to your Vercel URL (for example `https://salonbooking.vercel.app`; comma-separate multiple origins).
-4. Render health-checks `/actuator/health`. The schema is applied from `schema.sql` on first start.
+2. Render → **New → Blueprint** → select the repo. Render reads `render.yaml` and creates the web service (Docker, `rootDir: backend`) and the Postgres database.
+3. Enter `CORS_ALLOWED_ORIGINS` when asked (a placeholder first, the Vercel URL later).
+4. When the service is Live, check `/actuator/health` returns `{"status":"UP"}`.
 
-### Deploying the frontend (Vercel)
+**Frontend (Vercel)**
+1. Vercel → **Add New → Project** → import the repo.
+2. Root Directory: `frontend`. Application Preset: **Vite**.
+3. Environment variable `VITE_API_URL` = the Render service URL (no trailing slash). It is baked in at build time, so it must be set *before* deploying.
+4. Deploy.
 
-1. In Vercel: **Add New → Project**, import the repo.
-2. Set **Root Directory** to `frontend`.
-3. Add the environment variable `VITE_API_URL` = your Render service URL (for example `https://salonbooking-api.onrender.com`).
-4. Deploy. Every push to `main` redeploys; pull requests get preview URLs.
+**Connect them**
+- Set `CORS_ALLOWED_ORIGINS` on Render to the Vercel URL (exact, no trailing slash), for example `https://salonbooking-frontend-flame.vercel.app,http://localhost:5173`. Render redeploys.
+- Quick check from a terminal: an `OPTIONS` request to `/api/auth/login` with an `Origin` header of the Vercel URL should return `200`, not `403`.
+
+**Result:** https://salonbooking-frontend-flame.vercel.app/ (frontend) talks to https://salonbooking-api.onrender.com (backend).
+
+### Troubleshooting notes
+
+- Vercel failed with `vite: command not found` because the frontend commit had not been pushed yet, so it built an older commit without `package.json`. Check which commit the platform is building.
+- The browser (and a test request) got `403` from the API until the Vercel origin was added to CORS.
 
 ### Environment variables
 
 | Variable | Where | Purpose |
 |---|---|---|
-| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Render (set by `render.yaml`) | Postgres connection |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Render (from `render.yaml`) | Database connection |
 | `PORT` | Render (injected) | HTTP port |
-| `CORS_ALLOWED_ORIGINS` | Render (set manually) | Allowed frontend origin(s) |
-| `VITE_API_URL` | Vercel | Backend base URL |
+| `CORS_ALLOWED_ORIGINS` | Render (manual) | Frontend URL(s) allowed to call the API |
+| `VITE_API_URL` | Vercel | Backend URL |
 
-### Free-tier caveats
+### Free-tier notes
 
-- Render's free web service **spins down after about 15 minutes idle**, so the first request after that can take 30-60 seconds. Acceptable for a demo; upgrade the plan for real use.
-- Render's free Postgres has historically been **time-limited** (it has expired after 30 days). Check current terms, and move to a paid plan or an external free Postgres (Neon, Supabase) if the data must persist.
-- The Docker build and `render.yaml` have not yet been run end to end, so expect to adjust on the first deploy.
+- Render's free web service sleeps after about 15 minutes idle, so the first request can take 30-60 seconds.
+- Render's free Postgres has historically been time-limited, so data may not last. Check current terms.
 
-## Further Documentation
+## Known limitations and next steps
+
+Not implemented or simplified at this stage:
+
+- **No seed data and no admin API**, so stylists, services and working hours must be inserted manually in SQL before booking works.
+- **Missing endpoints** for browsing services/stylists, "my appointments", stylist schedules and admin management (SALON-03/04/07/09/10/11).
+- **Simplified authentication.** Login returns the customer record, and the client sends its own `customerId`. A real system would issue tokens (for example JWT) and read the identity from them on the server, so one user cannot act as another. As it stands this weakens the NFR-04 guarantee.
+- **Frontend is a demo.** Stylist and service are typed as ID numbers, and bookings only show for the current session.
+- **No load test yet** for NFR-01/02 (2 seconds at 50 users).
+- **Deployment not hardened:** no staging, no monitoring, free-tier limits.
+- **Microservices** are only a design exercise in `docs/CLOUD_NATIVE.md`.
+
+## Further documentation
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): architecture style, component diagram, data model, risks.
-- [`docs/CLOUD_NATIVE.md`](docs/CLOUD_NATIVE.md): microservice decomposition exercise, 6R, serverless vs container, edge/fog, quantum risk.
-- [`docs/TESTING.md`](docs/TESTING.md): test strategy, real run output, coverage.
+- [`docs/CLOUD_NATIVE.md`](docs/CLOUD_NATIVE.md): microservice split exercise, 6R, serverless vs container, edge/fog, quantum risk (theoretical).
+- [`docs/TESTING.md`](docs/TESTING.md): test scenarios, real run output, coverage.
 
 ---
 
