@@ -38,7 +38,7 @@ The 6R framework (Rehost/Replatform/Refactor/Repurchase/Retire/Retain) is built 
 |---|---|---|---|
 | 1 | The front-desk paper/Excel appointment log | **Retire** | SalonBooking fully replaces it; there's no data model worth migrating (a handwritten book), so the only "migration" is a process change on launch day. |
 | 2 | The salon's standalone card-payment terminal (unconnected to any booking system today; online payments are explicitly out of MVP scope) | **Repurchase** | When payments are eventually integrated, buying a vendor integration (Stripe/Square) is far lower-risk than building custom payment processing — PCI compliance, fraud detection, and card-network integration are the vendor's problem, not ours. |
-| 3 | SalonBooking itself, once it needs its first cloud home | **Rehost now, Refactor later** | The containerized monolith (already Dockerized this milestone) lifts as-is onto a container host (step 9) with no code changes — a straight rehost. The microservice split sketched above is deferred until real load data justifies it; this is a deliberate two-stage migration, not an all-at-once rebuild. |
+| 3 | SalonBooking itself, once it needs its first cloud home | **Rehost now, Refactor later** | The containerized monolith (already Dockerized this milestone) lifts as-is onto a container host (step 9; in practice Render, see root `README.md`) with no code changes — a straight rehost. The microservice split sketched above is deferred until real load data justifies it; this is a deliberate two-stage migration, not an all-at-once rebuild. |
 
 ## 9. Serverless, container, or VM?
 

@@ -10,7 +10,7 @@ A single Spring Boot application, internally split into clear layers/packages (`
 
 1. **The NFR targets don't justify distributed-systems overhead.** NFR-02 asks for ≥50 concurrent users; a single well-indexed Postgres-backed Spring Boot instance handles that comfortably. Splitting into services now would add network calls, eventual consistency, and operational surface area to solve a scaling problem that doesn't exist yet.
 2. **Team of one.** Microservices trade development simplicity for independent deployability and fault isolation — a trade that only pays off with a team large enough to own separate services. A solo developer pays the distributed-systems tax without the benefit.
-3. **Lower cost and operational complexity for a student project with no live cloud account yet** (see `CLOUD_NATIVE.md`) — one deployable artifact, one database, one `docker-compose.yml`.
+3. **Lower cost and operational complexity for a student project with no live cloud account yet** (see `CLOUD_NATIVE.md`) — one deployable artifact, one database, one `backend/docker-compose.yml`.
 
 The package boundaries are deliberately clean (see diagram below) so this *can* be decomposed later — that contrast is explored in `CLOUD_NATIVE.md` step 8, which treats the same system as a microservices design exercise.
 
@@ -84,9 +84,9 @@ Tables: `customers`, `stylists`, `services`, `working_hours` (FK to `stylists`),
 
 ## Tech stack & risks
 
-**Stack:** Java 21, Spring Boot 3 (Web, Data JPA, Validation, Security-Crypto for password hashing), PostgreSQL 16, Maven, Docker/docker-compose. Frontend stack (React) is chosen but not yet built.
+**Stack:** Java 21, Spring Boot 3 (Web, Data JPA, Validation, Security-Crypto for password hashing), PostgreSQL 16, Maven, Docker/docker-compose. Frontend (React + Vite, hosted on Vercel) lives in `frontend/` and is not yet built; the backend is deployed on Render (see root `README.md`).
 
 **Risks:**
 1. **Double-booking race condition under concurrent requests.** Two customers hitting "book" for the same overlapping slot at the same instant could both pass the app-level availability check before either commits. Mitigated by the DB `EXCLUDE` constraint (the actual safety net, not the app check) — proven in the integration test, which triggers the real Postgres error.
 2. **Monolith scaling ceiling** if usage ever grows well past the 50-concurrent-user NFR target. Mitigated by the clean package boundaries (`domain`/`repository`/`service`/`api`), which map directly onto the microservice decomposition sketched in `CLOUD_NATIVE.md` step 8, so splitting later is a refactor, not a rewrite.
-3. **Solo-developer operational risk** — no staging environment, no second reviewer. Mitigated by containerizing from day one (`docker-compose.yml`) and the CI pipeline (`.github/workflows/ci.yml`), which runs the full test suite against a real Postgres on every push before anything reaches `main`.
+3. **Solo-developer operational risk** — no staging environment, no second reviewer. Mitigated by containerizing from day one (`backend/docker-compose.yml`, `backend/Dockerfile`) and the CI pipeline (`.github/workflows/ci.yml`), which runs the full test suite against a real Postgres on every push before anything reaches `main`.
