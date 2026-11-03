@@ -20,7 +20,7 @@ Salon appointment reservation system: customers browse services and stylists, ch
 
 SalonBooking is a web application designed to simplify appointment booking at a beauty salon. Customers can browse salon services, choose a stylist, view available time slots, and book or cancel appointments. Stylists can view their schedules, while the salon administrator manages services, stylists, and working hours. The system aims to reduce manual scheduling and prevent appointment conflicts.
 
-**Current status:** the backend slice that carries the hardest requirements (registration, login, availability, booking, cancellation, no-overlap guarantee, access control) is implemented and tested. The React frontend (`frontend/`) is planned and not built yet.
+**Current status:** the backend slice that carries the hardest requirements (registration, login, availability, booking, cancellation, no-overlap guarantee, access control) is implemented and tested. A minimal React frontend (`frontend/`: register, login, check availability, book, cancel) is built and ready for Vercel.
 
 ## Tech Stack
 
@@ -28,7 +28,7 @@ SalonBooking is a web application designed to simplify appointment booking at a 
 |---|---|---|
 | Backend | Java 21, Spring Boot 3.3 (Web, Data JPA, Validation, Actuator, Security-Crypto) | REST API, BCrypt password hashing |
 | Database | PostgreSQL 16 | Relational model; `EXCLUDE` constraint enforces no double-booking |
-| Frontend | React + Vite (planned) | Static SPA, hosted on Vercel |
+| Frontend | React 18 + Vite | Static SPA, hosted on Vercel |
 | Build / tests | Maven, JUnit 5, Jacoco | Unit + integration tests against real Postgres |
 | Containers | Docker, docker-compose | Dockerfile for the API; compose for local Postgres |
 | CI | GitHub Actions | Runs the full test suite against a Postgres service on every push/PR |
@@ -72,7 +72,7 @@ SalonBooking/
 │   ├── Dockerfile            Multi-stage build used by Render
 │   ├── docker-compose.yml    Local Postgres
 │   └── pom.xml
-├── frontend/                 React app (planned), deployed to Vercel
+├── frontend/                 React + Vite app, deployed to Vercel
 ├── docs/                     ARCHITECTURE.md, CLOUD_NATIVE.md, TESTING.md
 ├── render.yaml               Render Blueprint (API + Postgres)
 └── .github/workflows/ci.yml  CI pipeline

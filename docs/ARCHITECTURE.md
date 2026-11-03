@@ -84,7 +84,7 @@ Tables: `customers`, `stylists`, `services`, `working_hours` (FK to `stylists`),
 
 ## Tech stack & risks
 
-**Stack:** Java 21, Spring Boot 3 (Web, Data JPA, Validation, Security-Crypto for password hashing), PostgreSQL 16, Maven, Docker/docker-compose. Frontend (React + Vite, hosted on Vercel) lives in `frontend/` and is not yet built; the backend is deployed on Render (see root `README.md`).
+**Stack:** Java 21, Spring Boot 3 (Web, Data JPA, Validation, Security-Crypto for password hashing), PostgreSQL 16, Maven, Docker/docker-compose. Frontend (React + Vite, hosted on Vercel) lives in `frontend/` as a minimal MVP; the backend is deployed on Render (see root `README.md`).
 
 **Risks:**
 1. **Double-booking race condition under concurrent requests.** Two customers hitting "book" for the same overlapping slot at the same instant could both pass the app-level availability check before either commits. Mitigated by the DB `EXCLUDE` constraint (the actual safety net, not the app check) — proven in the integration test, which triggers the real Postgres error.
