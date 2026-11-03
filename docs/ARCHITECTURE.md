@@ -2,7 +2,7 @@
 
 **Scenario:** D — own idea. The product is SalonBooking itself (see `README.md` for scope, stakeholders, NFR-01..04, and the MVP story list). This document chooses and justifies the architecture for that product.
 
-This milestone implements the slice of the MVP that carries the hardest non-functional requirement — NFR-03 (no overlapping appointments) and NFR-04 (access control) — end to end: `SALON-01` (register), `SALON-02` (login), `SALON-05` (check availability), `SALON-06` (book), `SALON-08` (cancel). The remaining stories (`SALON-03/04/07/09/10/11`) have their domain model in place (`Stylist`, `SalonService`, `WorkingHours`) but no API yet; they're deferred to a later milestone of this 3-4 month project.
+This milestone implements the slice of the MVP that carries the hardest non-functional requirement — NFR-03 (no overlapping appointments) and NFR-04 (access control) — end to end: `SALON-01` (register), `SALON-02` (login), `SALON-05` (check availability), `SALON-06` (book), `SALON-08` (cancel), plus the read-only lists `SALON-03` (services) and `SALON-04` (stylists). The remaining stories (`SALON-07/09/10/11`) have their domain model in place (`Stylist`, `SalonService`, `WorkingHours`) but no API yet; they're deferred to a later milestone of this 3-4 month project.
 
 ## Architecture style: layered modular monolith
 

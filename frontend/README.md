@@ -16,13 +16,15 @@ The backend is on a free Render plan that sleeps when idle, so the first request
 ## What it can do
 
 - Register and log in
-- Check a stylist's availability for a time slot
-- Book an appointment and cancel it
+- Choose a stylist and service from dropdowns (loaded from the API)
+- Check availability for a time slot, book it and cancel it
+- Switch between English and Georgian (EN / ქარ in the header)
 
 ## What it can't do yet (and why)
 
-- The backend has no endpoints for listing stylists, services or a customer's appointments, so stylist and service are typed as ID numbers and the bookings list only shows bookings from the current session.
-- Booking needs a stylist, a service and working hours in the database. `backend/src/main/resources/data.sql` seeds stylists 1-2, services 1-3 and Monday-Saturday 09:00-18:00 hours, so use those IDs and a time inside that window.
+- The bookings list only shows bookings made in the current session, because the backend has no "my appointments" endpoint yet.
+- Booking needs stylists, services and working hours in the database. `backend/src/main/resources/data.sql` seeds them (Monday to Saturday, 09:00-18:00), so pick a time inside that window.
+- Error messages that come straight from the API are in English; the common ones are translated in `src/i18n.js`.
 - Login is simplified: the user object is kept in `localStorage` and there are no tokens.
 
 ## Structure
@@ -36,6 +38,7 @@ frontend/
 └── src/
     ├── main.jsx        entry point
     ├── App.jsx         auth form + booking screen
+    ├── i18n.js         English / Georgian translations
     ├── api.js          all fetch calls to the backend
     └── styles.css      theme (CSS variables)
 ```

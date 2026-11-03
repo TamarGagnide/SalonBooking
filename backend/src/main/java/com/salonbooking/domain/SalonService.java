@@ -15,6 +15,9 @@ public class SalonService {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "name_ka")
+    private String nameKa;
+
     @Column(nullable = false)
     private int durationMinutes;
 
@@ -36,6 +39,10 @@ public class SalonService {
 
     public String getName() {
         return name;
+    }
+
+    public String getNameKa() {
+        return nameKa;
     }
 
     public int getDurationMinutes() {

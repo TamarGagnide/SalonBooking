@@ -13,6 +13,9 @@ public class Stylist {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "name_ka")
+    private String nameKa;
+
     protected Stylist() {
     }
 
@@ -26,5 +29,9 @@ public class Stylist {
 
     public String getName() {
         return name;
+    }
+
+    public String getNameKa() {
+        return nameKa;
     }
 }

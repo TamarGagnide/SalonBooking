@@ -44,3 +44,7 @@ CREATE TABLE IF NOT EXISTS appointments (
             tsrange(start_time, end_time) WITH &&
         ) WHERE (status = 'ACTIVE')
 );
+
+-- Georgian display names (existing databases get the column added on startup)
+ALTER TABLE stylists ADD COLUMN IF NOT EXISTS name_ka VARCHAR(255);
+ALTER TABLE services ADD COLUMN IF NOT EXISTS name_ka VARCHAR(255);

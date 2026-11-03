@@ -42,11 +42,12 @@ The core engineering problem is the no-double-booking rule (see [Design decision
 |---|---|
 | Requirements (stakeholders, NFRs, MVP stories) | Written (see bottom of this file) |
 | Backend: register, login, availability, book, cancel | Implemented and tested |
-| Backend: list services/stylists, my appointments, schedules, admin | **Not implemented yet** (domain model exists) |
-| Frontend | Minimal demo only: register, login, check availability, book, cancel. Deployed on Vercel |
-| CI (GitHub Actions) | Working: runs tests against Postgres |
+| Backend: list services and stylists | Implemented (`GET /api/services`, `GET /api/stylists`) |
+| Backend: my appointments, stylist schedules, admin | **Not implemented yet** (domain model exists) |
+| Frontend | Small demo: register, login, pick stylist and service from dropdowns, check availability, book, cancel; English and Georgian. Deployed on Vercel |
+| CI (GitHub Actions) | Working: backend tests against Postgres, frontend build, backend Docker build |
 | Deployment | Backend and database live on Render, frontend live on Vercel. CORS between them works (preflight request from the Vercel URL returns 200) |
-| Demo data | `backend/src/main/resources/data.sql` seeds 2 stylists, 3 services and Mon-Sat 09:00-18:00 working hours on an empty database |
+| Demo data | `backend/src/main/resources/data.sql` upserts 3 stylists (Marita, Mancho, Nina) and 3 services, with English and Georgian names, and adds Mon-Sat 09:00-18:00 working hours for stylists that have none |
 | Authentication | Simplified: no tokens or sessions (see limitations) |
 
 ## Tech stack
@@ -58,7 +59,7 @@ The core engineering problem is the no-double-booking rule (see [Design decision
 | Frontend | React 18 + Vite | Simple SPA, easy to host statically |
 | Tests | JUnit 5, Mockito | Unit tests and integration tests |
 | Containers | Docker, docker-compose | Same environment locally and in the cloud |
-| CI | GitHub Actions | Runs the tests on every push |
+| CI | GitHub Actions | Tests, frontend build and Docker build on every push and pull request |
 | Hosting | Vercel (frontend), Render (backend + Postgres) | Free tiers, GitHub integration |
 
 ## Architecture: why a monolith?
@@ -121,11 +122,12 @@ SalonBooking/
 
 The frontend (`frontend/`) is a small React 18 + Vite single-page app, built to try the API from a browser and to practice deploying a static site on Vercel. Live: https://salonbooking-frontend-flame.vercel.app/
 
-- **Pages/flows:** register, log in, check a stylist's availability for a time slot, book it, cancel it.
-- **Structure:** `src/api.js` (all `fetch` calls, base URL from `VITE_API_URL`), `src/App.jsx` (auth form and booking screen), `src/styles.css` (theme).
+- **Pages/flows:** register, log in, choose a stylist and service from dropdowns, check availability for a time slot, book it, cancel it.
+- **Languages:** English and Georgian, switched with the EN / ქარ buttons in the header (choice saved in `localStorage`). UI text lives in `src/i18n.js`. Stylist and service names come from the API (`name` and `nameKa`).
+- **Structure:** `src/api.js` (all `fetch` calls, base URL from `VITE_API_URL`), `src/App.jsx` (auth form and booking screen), `src/i18n.js` (translations), `src/styles.css` (theme).
 - **Styling:** plain CSS with a soft pink/mauve palette from Coolors (`#d6c7cf #c6bbc1 #d5cbd0 #e8dce2 #ebe1e6 #f2e4ea #f2e4eb #f6e7ee #f4e6ed #f6ebf0`). These are very light, so text and buttons use darker plum tones derived from them.
 - **Config:** `VITE_API_URL` is the backend URL. Vite bakes it into the build, so it must be set in Vercel *before* deploying.
-- **Limits:** the backend has no list endpoints yet, so stylist and service are typed as IDs and the bookings list only shows the current session. Login state is just the user object in `localStorage` (no tokens).
+- **Limits:** the bookings list only shows bookings made in the current session (no "my appointments" endpoint yet). Error messages from the API itself are in English except the common ones, which the UI translates. Login state is just the user object in `localStorage` (no tokens).
 
 More detail in [`frontend/README.md`](frontend/README.md).
 
@@ -135,6 +137,8 @@ More detail in [`frontend/README.md`](frontend/README.md).
 |---|---|---|
 | POST | `/api/customers` | Register (SALON-01) |
 | POST | `/api/auth/login` | Log in (SALON-02) |
+| GET | `/api/stylists` | List stylists with `name` and `nameKa` (SALON-04) |
+| GET | `/api/services` | List services with `name`, `nameKa`, duration, price (SALON-03) |
 | GET | `/api/stylists/{stylistId}/availability` | Check a time slot (SALON-05) |
 | POST | `/api/appointments` | Book (SALON-06) |
 | DELETE | `/api/appointments/{appointmentId}` | Cancel (SALON-08) |
@@ -167,7 +171,7 @@ mvn test     # integration tests need Postgres running
 ```
 
 - 11 tests: 9 unit tests (overlap logic, booking rules, access control) and 2 integration tests (Postgres rejecting a double-booking insert).
-- GitHub Actions (`.github/workflows/ci.yml`) runs the tests against a Postgres service on every push and pull request.
+- GitHub Actions (`.github/workflows/ci.yml`) runs three parallel jobs on every push and pull request to `main`: backend tests against a Postgres service container, the frontend production build, and the backend Docker image build.
 
 
 ## Deployment: Vercel + Render
@@ -209,9 +213,9 @@ Using each for what it does best also lets the two folders deploy independently.
 Not implemented or simplified at this stage:
 
 - **No admin API.** Stylists, services and working hours come only from the seed data in `data.sql`; there are no endpoints to manage them (SALON-10/11).
-- **Missing endpoints** for browsing services/stylists, "my appointments", stylist schedules and admin management (SALON-03/04/07/09/10/11).
+- **Missing endpoints** for "my appointments", stylist schedules and admin management (SALON-07/09/10/11).
 - **Simplified authentication.** Login returns the customer record, and the client sends its own `customerId`. A real system would issue tokens (for example JWT) and read the identity from them on the server, so one user cannot act as another. As it stands this weakens the NFR-04 guarantee.
-- **Frontend is a demo.** Stylist and service are typed as ID numbers, and bookings only show for the current session.
+- **Frontend is a demo.** Bookings only show for the current session, and only the UI text and catalog names are translated.
 - **No load test yet** for NFR-01/02 (2 seconds at 50 users).
 - **Deployment not hardened:** no staging, no monitoring, free-tier limits.
 - **No coverage report.** Suggestion for later: add the Jacoco Maven plugin and upload its report from CI, then add `@WebMvcTest` tests for the controllers.
