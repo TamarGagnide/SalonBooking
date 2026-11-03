@@ -36,13 +36,7 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
 
-      - name: Run tests with coverage
+      - name: Run tests
         working-directory: backend
         run: mvn -B -DintegrationTest.dbHost=localhost test
 
-      - name: Upload Jacoco coverage report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: jacoco-report
-          path: backend/target/site/jacoco

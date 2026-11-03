@@ -10,29 +10,24 @@ Salon appointment booking system: a Spring Boot REST API with PostgreSQL, and a 
 | Live frontend (Vercel) | https://salonbooking-frontend-flame.vercel.app/ |
 | Live backend API (Render) | https://salonbooking-api.onrender.com |
 | Backend health check | https://salonbooking-api.onrender.com/actuator/health |
-| Architecture notes | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
-| Cloud-native exercise | [`docs/CLOUD_NATIVE.md`](docs/CLOUD_NATIVE.md) |
-| Testing notes | [`docs/TESTING.md`](docs/TESTING.md) |
-| Frontend notes | [`frontend/README.md`](frontend/README.md) |
 
 > The backend runs on a free Render plan that sleeps when idle. The first request after a pause can take 30-60 seconds.
 
 ## Table of Contents
 
 1. [What this project is](#what-this-project-is)
-3. [Current status](#current-status)
-4. [Tech stack](#tech-stack)
-5. [Architecture: why a monolith?](#architecture-why-a-monolith)
-6. [Repository structure](#repository-structure)
-7. [Design decisions explained](#design-decisions-explained)
-8. [Frontend](#frontend)
-9. [API overview](#api-overview)
-10. [Running locally](#running-locally)
-11. [Testing and CI](#testing-and-ci)
-12. [Deployment: Vercel + Render](#deployment-vercel--render)
-13. [Known limitations and next steps](#known-limitations-and-next-steps)
-14. [Further documentation](#further-documentation)
-15. [Requirements](#requirements)
+2. [Current status](#current-status)
+3. [Tech stack](#tech-stack)
+4. [Architecture: why a monolith?](#architecture-why-a-monolith)
+5. [Repository structure](#repository-structure)
+6. [Design decisions explained](#design-decisions-explained)
+7. [Frontend](#frontend)
+8. [API overview](#api-overview)
+9. [Running locally](#running-locally)
+10. [Testing and CI](#testing-and-ci)
+11. [Deployment: Vercel + Render](#deployment-vercel--render)
+12. [Known limitations and next steps](#known-limitations-and-next-steps)
+13. [Requirements](#requirements)
 
 ## What this project is
 
@@ -61,7 +56,7 @@ The core engineering problem is the no-double-booking rule (see [Design decision
 | Backend | Java 21, Spring Boot 3.3 (Web, Data JPA, Validation, Actuator, Security-Crypto) | Common, well documented, good for layered design |
 | Database | PostgreSQL 16 | Relational data, plus a constraint type that prevents overlaps |
 | Frontend | React 18 + Vite | Simple SPA, easy to host statically |
-| Tests | JUnit 5, Jacoco | Unit tests, integration tests, coverage report |
+| Tests | JUnit 5, Mockito | Unit tests and integration tests |
 | Containers | Docker, docker-compose | Same environment locally and in the cloud |
 | CI | GitHub Actions | Runs the tests on every push |
 | Hosting | Vercel (frontend), Render (backend + Postgres) | Free tiers, GitHub integration |
@@ -83,9 +78,9 @@ The reasoning, in order of importance:
 2. **The key rule is easier inside one database.** "No overlapping appointments" is a transactional, relational rule. In one database, Postgres can enforce it directly. Across several services I would need distributed transactions or sagas for the most important rule in the system.
 3. **One developer.** Microservices help when separate teams own separate services. For one person they mostly add overhead (gateways, per-service pipelines, distributed debugging).
 4. **Cost and simplicity.** One container and one database fit free hosting tiers.
-5. **It can be split later.** The package boundaries map onto a possible split (Identity, Catalog, Availability, Booking, Admin). `docs/CLOUD_NATIVE.md` explores that as a design exercise, but it is not built.
+5. **It can be split later.** The package boundaries map onto a possible split (Identity, Catalog, Availability, Booking, Admin).
 
-**Trade-off I accepted:** the whole backend scales and fails as one unit. That is fine at this size, and it is listed as a risk in `docs/ARCHITECTURE.md`.
+**Trade-off I accepted:** the whole backend scales and fails as one unit. That is fine at this size.
 
 **Frontend and backend are separate deployables.** They live in separate folders and deploy to different platforms. That is a normal client/server split and does not make the system microservices.
 
@@ -105,7 +100,7 @@ SalonBooking/
 │   ├── docker-compose.yml    Local Postgres
 │   └── pom.xml
 ├── frontend/                 React + Vite demo UI (Vercel)
-├── docs/                     ARCHITECTURE.md, CLOUD_NATIVE.md, TESTING.md
+├── docs/                     ARCHITECTURE.md, TESTING.md
 ├── render.yaml               Render Blueprint (API + database)
 └── .github/workflows/ci.yml  CI pipeline
 ```
@@ -172,10 +167,8 @@ mvn test     # integration tests need Postgres running
 ```
 
 - 11 tests: 9 unit tests (overlap logic, booking rules, access control) and 2 integration tests (Postgres rejecting a double-booking insert).
-- Coverage report from Jacoco: `backend/target/site/jacoco/index.html`.
 - GitHub Actions (`.github/workflows/ci.yml`) runs the tests against a Postgres service on every push and pull request.
 
-Details and captured output are in `docs/TESTING.md`.
 
 ## Deployment: Vercel + Render
 
@@ -191,30 +184,11 @@ GitHub repo ──push──► Vercel  (builds frontend/, serves static files f
 
 Using each for what it does best also lets the two folders deploy independently.
 
-### Steps I followed
+### How the two connect
 
-**Backend (Render)**
-1. Push the repo to GitHub.
-2. Render → **New → Blueprint** → select the repo. Render reads `render.yaml` and creates the web service (Docker, `rootDir: backend`) and the Postgres database.
-3. Enter `CORS_ALLOWED_ORIGINS` when asked (a placeholder first, the Vercel URL later).
-4. When the service is Live, check `/actuator/health` returns `{"status":"UP"}`.
-
-**Frontend (Vercel)**
-1. Vercel → **Add New → Project** → import the repo.
-2. Root Directory: `frontend`. Application Preset: **Vite**.
-3. Environment variable `VITE_API_URL` = the Render service URL (no trailing slash). It is baked in at build time, so it must be set *before* deploying.
-4. Deploy.
-
-**Connect them**
-- Set `CORS_ALLOWED_ORIGINS` on Render to the Vercel URL (exact, no trailing slash), for example `https://salonbooking-frontend-flame.vercel.app,http://localhost:5173`. Render redeploys.
-- Quick check from a terminal: an `OPTIONS` request to `/api/auth/login` with an `Origin` header of the Vercel URL should return `200`, not `403`.
-
-**Result:** https://salonbooking-frontend-flame.vercel.app/ (frontend) talks to https://salonbooking-api.onrender.com (backend).
-
-### Troubleshooting notes
-
-- Vercel failed with `vite: command not found` because the frontend commit had not been pushed yet, so it built an older commit without `package.json`. Check which commit the platform is building.
-- The browser (and a test request) got `403` from the API until the Vercel origin was added to CORS.
+- The frontend calls the backend at `VITE_API_URL`. Vite bakes this value into the build, so it must be set in Vercel before the build runs.
+- The backend only accepts browser calls from origins listed in `CORS_ALLOWED_ORIGINS` (for example `https://salonbooking-frontend-flame.vercel.app,http://localhost:5173`, exact URL, no trailing slash).
+- Render builds `backend/Dockerfile` (`rootDir: backend`) and creates the Postgres database from `render.yaml`. Vercel builds `frontend/` with the Vite preset.
 
 ### Environment variables
 
@@ -240,13 +214,7 @@ Not implemented or simplified at this stage:
 - **Frontend is a demo.** Stylist and service are typed as ID numbers, and bookings only show for the current session.
 - **No load test yet** for NFR-01/02 (2 seconds at 50 users).
 - **Deployment not hardened:** no staging, no monitoring, free-tier limits.
-- **Microservices** are only a design exercise in `docs/CLOUD_NATIVE.md`.
-
-## Further documentation
-
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): architecture style, component diagram, data model, risks.
-- [`docs/CLOUD_NATIVE.md`](docs/CLOUD_NATIVE.md): microservice split exercise, 6R, serverless vs container, edge/fog, quantum risk (theoretical).
-- [`docs/TESTING.md`](docs/TESTING.md): test scenarios, real run output, coverage.
+- **No coverage report.** Suggestion for later: add the Jacoco Maven plugin and upload its report from CI, then add `@WebMvcTest` tests for the controllers.
 
 ---
 

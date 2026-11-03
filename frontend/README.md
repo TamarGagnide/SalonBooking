@@ -56,8 +56,6 @@ The backend allows `http://localhost:5173` by default (`CORS_ALLOWED_ORIGINS`).
 2. Set `VITE_API_URL` to the Render backend URL (no trailing slash) *before* deploying, because Vite bakes it into the build.
 3. Add the Vercel URL to `CORS_ALLOWED_ORIGINS` on the Render service.
 
-Troubleshooting: the first Vercel build failed with `vite: command not found` because the frontend commit had not been pushed yet. Check which commit the platform is building.
-
 ## Colors
 
 Palette from Coolors: `#d6c7cf #c6bbc1 #d5cbd0 #e8dce2 #ebe1e6 #f2e4ea #f2e4eb #f6e7ee #f4e6ed #f6ebf0`. They are all very light, so text, buttons and status colors use darker plum tones derived from them (`--ink`, `--accent` in `src/styles.css`).
